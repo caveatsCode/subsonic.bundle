@@ -8,6 +8,8 @@ BASE_URL       = "http://192.168.0.100:10101/"
 ARTIST         = "{http://subsonic.org/restapi}artist"
 ALBUM          = "{http://subsonic.org/restapi}album"
 SONG           = "{http://subsonic.org/restapi}song"
+CONTAINER      = 'mp3'
+AUDIO_CODEC    = AudioCodec.MP3
 
 import binascii
 
@@ -60,11 +62,34 @@ def getAlbum(albumID):
     id          = item.get("id")
     rating_key  = id
     duration = 1000 * int(item.get("duration"))
-    url = makeURL("stream.view", v="1.9.0", c="plex", id=id, format="mp3")
-    dir.add(TrackObject(title=title, duration=duration, key=url, rating_key=rating_key))
+    url = makeURL("stream.view", v="1.9.0", c="plex", id=id, format=CONTAINER)
+    dir.add(TrackObject(
+      title=title, 
+      duration=duration, 
+      key=url, #might need to change this line eventually to return metadata instead of playing track
+      rating_key=rating_key,
+      items = [
+        MediaObject(
+          parts = [
+            PartObject(key=Callback(PlayAudio, url=url, ext=CONTAINER))
+          ],
+          container = CONTAINER,
+          audio_codec = AUDIO_CODEC,
+          audio_channels = 2,
+          platforms=[]
+        )
+      ]))
   return dir
+  
+#play an audio track (copied this function from the Plex Shoutcast channel)
+def PlayAudio(url):
+	content = HTTP.Request(url, cacheTime=0).content
+	if content:
+		return content
+	else:
+		raise Ex.MediaNotAvailable
     
-#try to return thumbnail, else use default
+#try to return thumbnail, else use default (currently unused)
 def Thumb(url):
   try:
     data       = HTTP.Request(url, cacheTime=CACHE_1WEEK).content
