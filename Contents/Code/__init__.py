@@ -1,15 +1,14 @@
 
-NAME           = "subsonic"
-PREFIX         = "/music/subsonic"
-CACHE_INTERVAL = 10
-ART            = "art-default.png"
-ICON           = "icon-default.png"
-BASE_URL       = "http://192.168.0.100:10101/"
-ARTIST         = "{http://subsonic.org/restapi}artist"
-ALBUM          = "{http://subsonic.org/restapi}album"
-SONG           = "{http://subsonic.org/restapi}song"
-CONTAINER      = 'mp3'
-AUDIO_CODEC    = AudioCodec.MP3
+NAME                    = "subsonic"
+PREFIX                  = "/music/subsonic"
+CACHE_INTERVAL          = 10
+ART                     = "art-default.png"
+ICON                    = "icon-default.png"
+ARTIST                  = "{http://subsonic.org/restapi}artist"
+ALBUM                   = "{http://subsonic.org/restapi}album"
+SONG                    = "{http://subsonic.org/restapi}song"
+SUBSONIC_API_VERSION    = "1.9.0"
+SUBSONIC_CLIENT         = "plex"
 
 import binascii
 
@@ -26,8 +25,10 @@ def main():
 #create a menu listing all artists
 @route(PREFIX + '/getArtists')
 def getArtists():
+  if not serverStatus():
+    return ObjectContainer(header="Can't Connect", message="Check that your username, password and server address are entered correctly.")
   dir = ObjectContainer(title1="Artists")
-  element = XML.ElementFromURL(makeURL("getArtists.view", v="1.9.0", c="plex"), cacheTime=CACHE_INTERVAL)
+  element = XML.ElementFromURL(makeURL("getArtists.view"), cacheTime=CACHE_INTERVAL)
   #add all artists
   for item in searchElementTree(element, ARTIST):
     title       = item.get("name")
@@ -40,7 +41,7 @@ def getArtists():
 #create a menu with all albums for selected artist
 @route(PREFIX + '/getArtist/{artistID}')
 def getArtist(artistID):
-  element = XML.ElementFromURL(makeURL("getArtist.view", v="1.9.0", c="plex", id=artistID), cacheTime=CACHE_INTERVAL)
+  element = XML.ElementFromURL(makeURL("getArtist.view", id=artistID), cacheTime=CACHE_INTERVAL)
   artistName = element.find(ARTIST).get("name")
   dir = ObjectContainer(title1=artistName)
   for item in searchElementTree(element, ALBUM):
@@ -54,7 +55,15 @@ def getArtist(artistID):
 #create a menu with all songs for selected album
 @route(PREFIX + '/getAlbum/{albumID}')
 def getAlbum(albumID):
-  element = XML.ElementFromURL(makeURL("getAlbum.view", v="1.9.0", c="plex", id=albumID), cacheTime=CACHE_INTERVAL)
+  #set audio format based on prefs
+  container = Prefs['format']
+  if container == 'mp3':
+    audio_codec = AudioCodec.MP3
+  elif container == 'aac':
+    audio_codec = AudioCodec.AAC
+  
+  #populate the track listing
+  element = XML.ElementFromURL(makeURL("getAlbum.view", id=albumID), cacheTime=CACHE_INTERVAL)
   albumName = element.find(ALBUM).get("name")
   dir = ObjectContainer(title1=albumName)
   for item in searchElementTree(element, SONG):
@@ -62,7 +71,7 @@ def getAlbum(albumID):
     id          = item.get("id")
     rating_key  = id
     duration = 1000 * int(item.get("duration"))
-    url = makeURL("stream.view", v="1.9.0", c="plex", id=id, format=CONTAINER)
+    url = makeURL("stream.view", id=id, format=container)
     dir.add(TrackObject(
       title=title, 
       duration=duration, 
@@ -71,10 +80,10 @@ def getAlbum(albumID):
       items = [
         MediaObject(
           parts = [
-            PartObject(key=Callback(PlayAudio, url=url, ext=CONTAINER))
+            PartObject(key=Callback(playAudio, url=url, ext=container))
           ],
-          container = CONTAINER,
-          audio_codec = AUDIO_CODEC,
+          container = container,
+          audio_codec = audio_codec,
           audio_channels = 2,
           platforms=[]
         )
@@ -82,7 +91,7 @@ def getAlbum(albumID):
   return dir
   
 #play an audio track (copied this function from the Plex Shoutcast channel)
-def PlayAudio(url):
+def playAudio(url):
 	content = HTTP.Request(url, cacheTime=0).content
 	if content:
 		return content
@@ -103,6 +112,8 @@ def makeURL(view, **parameters):
   url += "rest/" + view + "?"
   parameters['u'] = Prefs['username']
   parameters['p'] = "enc:" + binascii.hexlify(Prefs['password'])
+  parameters['v'] = SUBSONIC_API_VERSION
+  parameters['c'] = SUBSONIC_CLIENT
   for param in parameters:
     url += param + "=" + parameters[param] + "&"
   return url
@@ -114,3 +125,20 @@ def searchElementTree(element, search):
     for e in list(element):
       matches += searchElementTree(e, search)
   return matches
+
+#check that media server is accessible
+def serverStatus():
+  #check that Preferences have been set
+  if not (Prefs['username'] and Prefs['password'] and Prefs['server']):
+    return False
+  #try to ping server with credentials
+  elif XML.ElementFromURL(makeURL("ping.view"), cacheTime=CACHE_INTERVAL).get("status") != "ok":
+    return False
+  #connection is successful, return True and proceed!
+  else:
+    return True
+    
+#Plex calls this functions anytime Prefs are changed
+def ValidatePrefs():
+  if not serverStatus():
+    return ObjectContainer(header="Can't Connect", message="Check that your username, password and server address are entered correctly.")

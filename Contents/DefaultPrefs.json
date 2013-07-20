@@ -18,5 +18,15 @@
       "label": "Password",
       "default": "",
       "option": "hidden"
-	}
+	},
+  {
+      "id": "format",
+      "type": "enum",
+      "label": "Audio Format",
+      "default": "mp3",
+      "values": [
+              "mp3",
+              "aac"
+      ]
+  }
 ]
