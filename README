@@ -1,0 +1,16 @@
+Subsonic* is a media streaming server that is similar to Plex, but focuses on music rather than video.  I am trying to make a plugin to allow Subsonic streams to be played through Plex.
+ 
+The plugin is available from:
+https://github.com/caveatsCode/subsonic.bundle
+ 
+This is a barebones alpha version.  You need to enter your server information in Preferences before using the channel.
+
+To do list:
+Search function
+Scrobble to last.fm
+Shuffle
+Other navigation options besides Artist (such as genre, decade)
+ 
+If you test this channel, please let me know what works and what doesn't work for your setup.
+ 
+*You need Subsonic Premium to use this channel.  It currently costs $1 per month from the Subsonic website (http://www.subsonic.org/pages/premium.jsp).
