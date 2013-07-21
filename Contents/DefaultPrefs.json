@@ -4,7 +4,7 @@
     	"id": "server",
       "type": "text",
       "label": "Server URL",
-      "default": ""
+      "default": "http://127.0.0.1:4040/"
 	},
   {
     	"id": "username",

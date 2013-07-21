@@ -140,5 +140,7 @@ def serverStatus():
     
 #Plex calls this functions anytime Prefs are changed
 def ValidatePrefs():
-  if not serverStatus():
+  if Prefs['server'][-1] != '/':
+    return ObjectContainer(header="Check Server Address", message="Server address must end with a slash character ie http://127.0.0.1:8080/")
+  elif not serverStatus():
     return ObjectContainer(header="Can't Connect", message="Check that your username, password and server address are entered correctly.")
